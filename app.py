@@ -3,101 +3,140 @@ import pandas as pd
 import numpy as np
 import joblib
 import shap
+import matplotlib.pyplot as plt
 
-# =========================
-# 페이지 설정
-# =========================
+# =========================================================
+# 기본 설정
+# =========================================================
 st.set_page_config(
     page_title="Turbofan RUL Dashboard",
     page_icon="✈️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# =========================
-# 디자인
-# =========================
+# =========================================================
+# CSS 디자인
+# =========================================================
 st.markdown("""
 <style>
-.stApp {
-    background-color: #f5f7fb;
-}
 
-.main-title {
-    font-size: 42px;
-    font-weight: 800;
-    color: #172033;
-}
+    /* 전체 배경 */
+    .stApp {
+        background-color: #f5f7fb;
+    }
 
-.sub-title {
-    font-size: 17px;
-    color: #687386;
-    margin-bottom: 25px;
-}
+    /* 상단 제목 */
+    .main-title {
+        font-size: 42px;
+        font-weight: 800;
+        color: #172033;
+        margin-bottom: 5px;
+    }
 
-.card {
-    background-color: white;
-    padding: 22px;
-    border-radius: 16px;
-    border: 1px solid #e5e9f0;
-    margin-bottom: 20px;
-}
+    .sub-title {
+        font-size: 17px;
+        color: #687386;
+        margin-bottom: 30px;
+    }
 
-.section-title {
-    font-size: 25px;
-    font-weight: 700;
-    color: #172033;
-    margin-top: 20px;
-    margin-bottom: 15px;
-}
+    /* 카드 */
+    .dashboard-card {
+        background: white;
+        padding: 24px;
+        border-radius: 18px;
+        border: 1px solid #e5e9f0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        margin-bottom: 20px;
+    }
 
-.normal {
-    background-color: #e9f7ef;
-    padding: 15px;
-    border-radius: 10px;
-    border-left: 6px solid #27ae60;
-}
+    /* 상태 박스 */
+    .status-normal {
+        background: #e9f7ef;
+        border-left: 6px solid #27ae60;
+        padding: 15px 20px;
+        border-radius: 10px;
+        color: #176b3a;
+        font-weight: 700;
+    }
 
-.caution {
-    background-color: #fff6df;
-    padding: 15px;
-    border-radius: 10px;
-    border-left: 6px solid #f2a900;
-}
+    .status-warning {
+        background: #fff6df;
+        border-left: 6px solid #f2a900;
+        padding: 15px 20px;
+        border-radius: 10px;
+        color: #805b00;
+        font-weight: 700;
+    }
 
-.attention {
-    background-color: #fdecec;
-    padding: 15px;
-    border-radius: 10px;
-    border-left: 6px solid #e74c3c;
-}
+    .status-danger {
+        background: #fdecec;
+        border-left: 6px solid #e74c3c;
+        padding: 15px 20px;
+        border-radius: 10px;
+        color: #8a2117;
+        font-weight: 700;
+    }
+
+    /* 섹션 제목 */
+    .section-title {
+        font-size: 24px;
+        font-weight: 750;
+        color: #172033;
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+
+    /* 사이드바 */
+    section[data-testid="stSidebar"] {
+        background-color: #172033;
+    }
+
+    section[data-testid="stSidebar"] * {
+        color: white;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
 
-# =========================
-# 파일 불러오기
-# =========================
+# =========================================================
+# 모델 / 데이터 불러오기
+# =========================================================
 @st.cache_resource
 def load_model():
-    model = joblib.load("rf_model_compressed.pkl")
-    scaler = joblib.load("scaler.pkl")
+
+    model = joblib.load(
+        "rf_model_compressed.pkl"
+    )
+
+    scaler = joblib.load(
+        "scaler.pkl"
+    )
+
     return model, scaler
 
 
 @st.cache_data
 def load_data():
-    return pd.read_csv("test_data.csv")
+
+    return pd.read_csv(
+        "test_data.csv"
+    )
 
 
 rf_model, scaler = load_model()
 test_data = load_data()
 
-all_sensors = [f"sensor_{i}" for i in range(1, 22)]
+all_sensors = [
+    f"sensor_{i}"
+    for i in range(1, 22)
+]
 
 
-# =========================
+# =========================================================
 # 사이드바
-# =========================
+# =========================================================
 with st.sidebar:
 
     st.markdown("## ✈️ TURBOFAN")
@@ -105,94 +144,141 @@ with st.sidebar:
 
     st.divider()
 
+    st.markdown("### ⚙️ Engine Selection")
+
     engine_ids = sorted(
         test_data["engine_id"].unique()
     )
 
     target_engine = st.selectbox(
-        "분석할 엔진 번호",
+        "분석할 엔진",
         engine_ids
     )
 
     st.divider()
 
-    st.markdown("### SYSTEM")
+    st.markdown("### 📌 System Information")
 
-    st.write("Dataset")
+    st.write("**Dataset**")
     st.write("NASA C-MAPSS FD001")
 
-    st.write("Model")
+    st.write("**Model**")
     st.write("Random Forest")
 
-    st.write("XAI")
+    st.write("**XAI Method**")
     st.write("SHAP")
 
+    st.divider()
 
-# =========================
-# 선택된 엔진 데이터
-# =========================
+    st.caption(
+        "Predictive Maintenance Dashboard"
+    )
+
+
+# =========================================================
+# 선택 엔진 데이터
+# =========================================================
+
 engine_data = test_data[
     test_data["engine_id"] == target_engine
-].iloc[-1:]
-
-X_engine = engine_data[all_sensors]
-
-X_engine_scaled = scaler.transform(X_engine)
+].sort_values(
+    "cycle"
+).iloc[-1:]
 
 
-# =========================
-# RUL 예측
-# =========================
-predicted_rul = float(
-    rf_model.predict(X_engine_scaled)[0]
+X_engine = engine_data[
+    all_sensors
+]
+
+
+# =========================================================
+# 스케일링
+# =========================================================
+
+X_engine_scaled = scaler.transform(
+    X_engine
 )
+
+
+# =========================================================
+# RUL 예측
+# =========================================================
+
+predicted_rul = float(
+    rf_model.predict(
+        X_engine_scaled
+    )[0]
+)
+
 
 current_cycle = int(
     engine_data["cycle"].iloc[0]
 )
 
 
-# =========================
-# 상태
-# =========================
+# =========================================================
+# 상태 판단
+# =========================================================
+
 if predicted_rul >= 50:
-    status = "NORMAL"
-    status_class = "normal"
-    description = "예측 잔여수명이 비교적 충분합니다."
+
+    status_text = "● NORMAL"
+
+    status_class = "status-normal"
+
+    status_description = (
+        "현재 예측 RUL이 비교적 충분한 상태입니다."
+    )
 
 elif predicted_rul >= 20:
-    status = "CAUTION"
-    status_class = "caution"
-    description = "잔여수명이 감소하고 있어 상태 확인이 필요합니다."
+
+    status_text = "● CAUTION"
+
+    status_class = "status-warning"
+
+    status_description = (
+        "잔여수명이 감소하고 있어 상태 확인이 필요합니다."
+    )
 
 else:
-    status = "ATTENTION"
-    status_class = "attention"
-    description = "예측 잔여수명이 낮아 점검 우선순위를 높일 필요가 있습니다."
+
+    status_text = "● ATTENTION"
+
+    status_class = "status-danger"
+
+    status_description = (
+        "예측 잔여수명이 낮아 점검 우선순위를 높일 필요가 있습니다."
+    )
 
 
-# =========================
-# 헤더
-# =========================
+# =========================================================
+# 메인 헤더
+# =========================================================
+
 st.markdown(
-    '<div class="main-title">✈️ Turbofan RUL Dashboard</div>',
+    '<div class="main-title">'
+    '✈️ Turbofan RUL Dashboard'
+    '</div>',
     unsafe_allow_html=True
 )
 
 st.markdown(
     '<div class="sub-title">'
-    'NASA C-MAPSS 기반 터보팬 엔진 잔여수명 예측 및 XAI 분석'
+    'NASA C-MAPSS 기반 터보팬 엔진 '
+    '잔여수명 예측 및 XAI 분석'
     '</div>',
     unsafe_allow_html=True
 )
 
 
-# =========================
-# 상태
-# =========================
+# =========================================================
+# 상태 표시
+# =========================================================
+
 st.markdown(
     f'<div class="{status_class}">'
-    f'<b>● {status}</b>　{description}'
+    f'{status_text} &nbsp; | &nbsp; '
+    f'{status_description}'
     f'</div>',
     unsafe_allow_html=True
 )
@@ -200,198 +286,316 @@ st.markdown(
 st.write("")
 
 
-# =========================
+# =========================================================
 # 핵심 지표
-# =========================
-st.markdown(
-    '<div class="section-title">📊 Engine Status</div>',
-    unsafe_allow_html=True
-)
+# =========================================================
 
 col1, col2, col3, col4 = st.columns(4)
 
+
 with col1:
+
     st.metric(
         "🔧 현재 엔진",
-        f"Engine {target_engine}"
+        f"Engine {int(target_engine)}"
     )
 
+
 with col2:
+
     st.metric(
-        "⏱ 현재 Cycle",
+        "⏱ Current Cycle",
         f"{current_cycle}"
     )
 
+
 with col3:
+
     st.metric(
-        "📉 예측 RUL",
-        f"{predicted_rul:.1f} cycles"
+        "📉 Predicted RUL",
+        f"{predicted_rul:.1f}",
+        "cycles"
     )
 
+
 with col4:
+
     st.metric(
-        "🤖 예측 모델",
+        "🤖 Model",
         "Random Forest"
     )
 
 
-# =========================
-# XAI
-# =========================
+# =========================================================
+# SHAP 분석
+# =========================================================
+
 st.markdown(
-    '<div class="section-title">🔍 XAI Analysis</div>',
+    '<div class="section-title">'
+    '🔍 XAI Analysis'
+    '</div>',
     unsafe_allow_html=True
 )
 
-try:
 
-    explainer = shap.TreeExplainer(rf_model)
+# =========================================================
+# SHAP 계산
+# =========================================================
 
-    shap_values = explainer.shap_values(
-        X_engine_scaled
-    )
-
-    # SHAP 결과 형태 대응
-    if isinstance(shap_values, list):
-        shap_values = shap_values[0]
-
-    shap_values = np.asarray(shap_values)
-
-    if shap_values.ndim == 2:
-        shap_values = shap_values[0]
-
-    # 데이터프레임 생성
-    shap_df = pd.DataFrame({
-        "Sensor": all_sensors,
-        "SHAP Value": shap_values,
-        "Sensor Value": X_engine.iloc[0].values
-    })
-
-    shap_df["Absolute SHAP"] = np.abs(
-        shap_df["SHAP Value"]
-    )
-
-    shap_df = shap_df.sort_values(
-        "Absolute SHAP",
-        ascending=False
-    )
-
-    # -------------------------
-    # TOP 센서
-    # -------------------------
-    left, right = st.columns([1.4, 1])
-
-    with left:
-
-        st.markdown(
-            '<div class="card">',
-            unsafe_allow_html=True
-        )
-
-        st.markdown("### SHAP 영향도")
-
-        chart_data = shap_df.head(10).copy()
-
-        chart_data = chart_data[
-            ["Sensor", "SHAP Value"]
-        ]
-
-        chart_data = chart_data.set_index(
-            "Sensor"
-        )
-
-        st.bar_chart(
-            chart_data,
-            use_container_width=True
-        )
-
-        st.caption(
-            "양수: RUL을 증가시키는 방향"
-        )
-
-        st.caption(
-            "음수: RUL을 감소시키는 방향"
-        )
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-
-    with right:
-
-        st.markdown(
-            '<div class="card">',
-            unsafe_allow_html=True
-        )
-
-        st.markdown("### 🔥 주요 영향 센서 TOP 10")
-
-        top10 = shap_df.head(10).copy()
-
-        top10["방향"] = top10[
-            "SHAP Value"
-        ].apply(
-            lambda x: "RUL ↑" if x > 0 else "RUL ↓"
-        )
-
-        top10["SHAP Value"] = top10[
-            "SHAP Value"
-        ].round(2)
-
-        top10["Sensor Value"] = top10[
-            "Sensor Value"
-        ].round(3)
-
-        st.dataframe(
-            top10[
-                [
-                    "Sensor",
-                    "Sensor Value",
-                    "SHAP Value",
-                    "방향"
-                ]
-            ],
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-
-except Exception as e:
-
-    st.error("SHAP 분석 중 오류가 발생했습니다.")
-
-    st.code(str(e))
-
-
-# =========================
-# 센서 데이터
-# =========================
-st.markdown(
-    '<div class="section-title">📡 Sensor Monitoring</div>',
-    unsafe_allow_html=True
+explainer = shap.TreeExplainer(
+    rf_model
 )
 
-sensor_table = pd.DataFrame({
+shap_exp = explainer(
+    X_engine_scaled
+)
+
+
+# =========================================================
+# SHAP 값 정리
+# =========================================================
+
+shap_values = shap_exp.values
+
+
+# SHAP 값이 2차원인 경우
+if shap_values.ndim == 2:
+
+    shap_values = shap_values[0]
+
+
+# 혹시 불필요한 차원이 있는 경우
+shap_values = np.asarray(
+    shap_values
+).flatten()
+
+
+# =========================================================
+# SHAP 데이터프레임
+# =========================================================
+
+shap_df = pd.DataFrame({
+
     "Sensor": all_sensors,
-    "Current Value": X_engine.iloc[0].values
+
+    "SHAP": shap_values,
+
+    "Sensor Value":
+        X_engine.iloc[0].values
+
 })
 
-sensor_table["Current Value"] = sensor_table[
-    "Current Value"
-].round(4)
 
-st.dataframe(
-    sensor_table,
-    use_container_width=True,
-    hide_index=True
+shap_df["Abs_SHAP"] = (
+    np.abs(
+        shap_df["SHAP"]
+    )
 )
 
 
-# =========================
-# 상세 데이터
-# =========================
-with st.expander("🔎 선택된 엔진의 상세 데이터"):
+shap_df = shap_df.sort_values(
+    "Abs_SHAP",
+    ascending=False
+)
+
+
+# =========================================================
+# SHAP + Top Sensors
+# =========================================================
+
+left, right = st.columns(
+    [1.7, 1]
+)
+
+
+# =========================================================
+# 왼쪽 : SHAP Waterfall
+# =========================================================
+
+with left:
+
+    st.markdown(
+        '<div class="dashboard-card">',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        "#### 📊 SHAP Waterfall"
+    )
+
+
+    # SHAP Waterfall 생성
+    shap.plots.waterfall(
+        shap_exp[0],
+        show=False
+    )
+
+
+    # 현재 SHAP figure 가져오기
+    fig = plt.gcf()
+
+
+    st.pyplot(
+        fig,
+        clear_figure=True
+    )
+
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+
+# =========================================================
+# 오른쪽 : 주요 영향 센서
+# =========================================================
+
+with right:
+
+    st.markdown(
+        '<div class="dashboard-card">',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        "#### 📊 주요 영향 센서"
+    )
+
+
+    top_sensors = (
+        shap_df
+        .head(8)
+        .copy()
+    )
+
+
+    top_sensors["Direction"] = (
+        top_sensors["SHAP"]
+        .apply(
+            lambda x:
+            "RUL ↑"
+            if x > 0
+            else "RUL ↓"
+        )
+    )
+
+
+    display_df = top_sensors[
+        [
+            "Sensor",
+            "Sensor Value",
+            "SHAP",
+            "Direction"
+        ]
+    ].copy()
+
+
+    display_df["Sensor Value"] = (
+        display_df["Sensor Value"]
+        .round(3)
+    )
+
+
+    display_df["SHAP"] = (
+        display_df["SHAP"]
+        .round(2)
+    )
+
+
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+    st.markdown(
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+
+# =========================================================
+# 센서 데이터
+# =========================================================
+
+st.markdown(
+    '<div class="section-title">'
+    '📡 Sensor Monitoring'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+
+tab1, tab2 = st.tabs(
+    [
+        "📋 현재 센서값",
+        "📊 SHAP 영향도"
+    ]
+)
+
+
+# =========================================================
+# 현재 센서값
+# =========================================================
+
+with tab1:
+
+    sensor_table = pd.DataFrame({
+
+        "Sensor": all_sensors,
+
+        "Current Value":
+            X_engine.iloc[0].values
+
+    })
+
+
+    sensor_table["Current Value"] = (
+        sensor_table[
+            "Current Value"
+        ].round(4)
+    )
+
+
+    st.dataframe(
+        sensor_table,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+# =========================================================
+# SHAP 영향도
+# =========================================================
+
+with tab2:
+
+    chart_df = (
+        shap_df
+        .head(10)
+        .sort_values(
+            "Abs_SHAP",
+            ascending=True
+        )
+    )
+
+
+    st.bar_chart(
+        chart_df.set_index(
+            "Sensor"
+        )["SHAP"]
+    )
+
+
+# =========================================================
+# 엔진 원본 정보
+# =========================================================
+
+with st.expander(
+    "🔎 엔진 상세 데이터 보기"
+):
 
     st.dataframe(
         engine_data,
@@ -400,20 +604,23 @@ with st.expander("🔎 선택된 엔진의 상세 데이터"):
     )
 
 
-# =========================
-# 설명
-# =========================
+# =========================================================
+# 하단 설명
+# =========================================================
+
 st.divider()
 
-st.caption(
-    "RUL(Residual Useful Life)은 엔진의 잔여수명을 의미합니다."
-)
 
 st.caption(
-    "SHAP 값은 각 센서가 개별 RUL 예측에 미친 영향을 나타냅니다."
+    "※ RUL(Residual Useful Life)은 "
+    "엔진의 잔여수명을 의미합니다. "
+    "SHAP 값은 각 센서가 해당 RUL 예측에 "
+    "미친 영향을 나타냅니다."
 )
 
+
 st.caption(
-    "※ NORMAL / CAUTION / ATTENTION 기준은 본 연구의 대시보드 시각화를 "
-    "위해 설정한 기준이며 실제 항공기 정비 기준을 의미하지 않습니다."
+    "NASA C-MAPSS FD001 데이터셋과 "
+    "Random Forest 모델을 기반으로 구현한 "
+    "예지정비 연구용 대시보드입니다."
 )
