@@ -136,13 +136,71 @@ all_sensors = [
 
 # =========================================================
 # 사이드바
-# =========================================================
-with st.sidebar:
+# =========================================================with st.sidebar:
 
     st.markdown("## ✈️ TURBOFAN")
     st.markdown("### RUL MONITORING")
 
     st.divider()
+
+    # =====================================================
+    # 데이터셋 선택
+    # =====================================================
+
+    st.markdown("### 📂 Dataset")
+
+    uploaded_file = st.file_uploader(
+        "CSV 데이터셋 업로드",
+        type=["csv"]
+    )
+
+    if uploaded_file is not None:
+
+        test_data = pd.read_csv(uploaded_file)
+
+        dataset_name = uploaded_file.name
+
+        st.success(
+            f"업로드 완료: {dataset_name}"
+        )
+
+    else:
+
+        test_data = pd.read_csv(
+            "test_data.csv"
+        )
+
+        dataset_name = "test_data.csv"
+
+    # =====================================================
+    # 데이터 구조 확인
+    # =====================================================
+
+    required_columns = (
+        ["engine_id", "cycle"]
+        + all_sensors
+    )
+
+    missing_columns = [
+        col
+        for col in required_columns
+        if col not in test_data.columns
+    ]
+
+    if missing_columns:
+
+        st.error(
+            "필수 센서 열이 없습니다:\n"
+            + ", ".join(missing_columns)
+        )
+
+        st.stop()
+
+    st.divider()
+
+    # =====================================================
+    # 엔진 선택
+    # =====================================================
 
     st.markdown("### ⚙️ Engine Selection")
 
@@ -157,10 +215,26 @@ with st.sidebar:
 
     st.divider()
 
+    # =====================================================
+    # 시스템 정보
+    # =====================================================
+
     st.markdown("### 📌 System Information")
 
     st.write("**Dataset**")
-    st.write("NASA C-MAPSS FD001")
+    st.write(dataset_name)
+
+    st.write("**Model**")
+    st.write("Random Forest")
+
+    st.write("**XAI Method**")
+    st.write("SHAP")
+
+    st.divider()
+
+    st.caption(
+        "Predictive Maintenance Dashboard"
+    )
 
     st.write("**Model**")
     st.write("Random Forest")
