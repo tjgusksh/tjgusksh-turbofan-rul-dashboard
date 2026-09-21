@@ -117,16 +117,7 @@ def load_model():
     return model, scaler
 
 
-@st.cache_data
-def load_data():
-
-    return pd.read_csv(
-        "test_data.csv"
-    )
-
-
 rf_model, scaler = load_model()
-test_data = load_data()
 
 all_sensors = [
     f"sensor_{i}"
@@ -136,7 +127,8 @@ all_sensors = [
 
 # =========================================================
 # 사이드바
-# =========================================================with st.sidebar:
+# =========================================================
+with st.sidebar:
 
     st.markdown("## ✈️ TURBOFAN")
     st.markdown("### RUL MONITORING")
@@ -190,7 +182,7 @@ all_sensors = [
     if missing_columns:
 
         st.error(
-            "필수 센서 열이 없습니다:\n"
+            "필수 센서 열이 없습니다: "
             + ", ".join(missing_columns)
         )
 
@@ -223,18 +215,6 @@ all_sensors = [
 
     st.write("**Dataset**")
     st.write(dataset_name)
-
-    st.write("**Model**")
-    st.write("Random Forest")
-
-    st.write("**XAI Method**")
-    st.write("SHAP")
-
-    st.divider()
-
-    st.caption(
-        "Predictive Maintenance Dashboard"
-    )
 
     st.write("**Model**")
     st.write("Random Forest")
